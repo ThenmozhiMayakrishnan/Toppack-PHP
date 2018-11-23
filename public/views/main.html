@@ -1,0 +1,25 @@
+<div ng-controller="ToppackController">
+  <!-- Search container -->
+  <div class="search-container">
+      <div class="row">
+          <div class="col-md-4 col-md-offset-3">
+              <div class="search-form">
+                  <div class="form-group has-feedback">
+                  <label for="search" class="sr-only">Search</label>
+                  <input type="text" class="form-control" name="search" id="search" placeholder="search" ng-model="searchTerm" ng-enter="searchRepo();">
+                    <i class="fa fa-search" aria-hidden="true"></i>
+                </div>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <div ng-if="!searchError.length" ng-repeat="repository in repositories">
+    <card-view repository="repository" importRepository="importRepository"></card-view>
+  </div>
+
+  <div ng-if="searchError.length" >
+    {{searchError}}
+  </div>
+
+</div>
