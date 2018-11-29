@@ -11,15 +11,21 @@ return [
 
         // Monolog settings
         'logger' => [
-            'name' => 'slim-app',
-            'path' => isset($_ENV['docker']) ? 'php://stdout' : __DIR__ . '/../logs/app.log',
+            'name' => 'toppack',
+            'path' => isset($_ENV['docker']) ? 'php://stdout' : __DIR__ . '/../logs/dev.log',
             'level' => \Monolog\Logger::DEBUG,
         ],
-        'db' => [
+        'pdo' => [
+          'engine' => 'mysql',
           'host' => 'localhost',
           'username' => 'root',
-          'password' => 'thenu',
-          'dbname' => 'toppack'
+          'password' => 'Thenmozhi@1',
+          'database' => 'toppack',
+          'options' => [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => true
+          ]
         ]
     ],
 ];

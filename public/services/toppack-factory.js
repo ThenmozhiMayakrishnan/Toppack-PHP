@@ -1,14 +1,20 @@
 function toppackFactory($http) {
   return {
     getRepositories: function(searchTerm, successCallback, errorCallback) {
-      var url = "/repositories/" + searchTerm;
+      var url = searchTerm ? "/repositories?searchTerm=" + searchTerm : "/repositories"
       var httpParams = {
         method: 'GET',
         url: url
       }
       $http(httpParams).then(function(response) {
+        if(!successCallback) {
+          return response.data;
+        }
         successCallback(response.data);
       }, function(error) {
+        if(!errorCallback) {
+          return "Couldn't find repositories";
+        }
         errorCallback(error);
       });
     },

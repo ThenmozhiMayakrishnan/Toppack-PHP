@@ -6,87 +6,92 @@ use GuzzleHttp\Exception\ClientException;
 
 class APIHandler
 {
-    public static $git_search_endpoint = 'https://api.github.com/search/repositories';
+    public static $gitEndpoint = 'https://api.github.com/search/repositories';
 
-    //fetches repos based on language and keyword
-    public function getGITRepos(string $keyword, $language) {
+    /*
+      Fetches the repos based on the keyword passed
+    */
+    public function getReposByKeyword($keyword) {
         $client = new Client();
         $params = array('q' => $keyword.' in:name',
                         'sort' => 'stars',
                         'order' => 'desc');
-        $res = $client->get(self::$git_search_endpoint, ['query' => $params]);
+        $res = $client->get(self::$gitEndpoint, ['query' => $params]);
         if ($res->getStatusCode() == 200){
-          $response_json = json_decode($res->getBody());
-          return $this->filterJSON($response_json);
+          $responseJson = json_decode($res->getBody());
+          return $this->whitelistRepo($responseJson);
         }
     }
 
-    // sanotizes to only the attributes that we need
-    private function filterJSON($response_json){
-      $sanitized_results = [];
-      foreach($response_json->items as $item){
-        $sanitized_item = [
-          'updated_at' => $item->updated_at,
-          'description' => $item->description,
-          'forks_count' => $item->forks_count,
-          'html_url' => $item->html_url,
-          'name' => $item->name,
-          'stargazers_count' => $item->stargazers_count,
-          'watchers_count' => $item->watchers_count,
-          'owner' => $item->owner->login
-        ];
-        array_push($sanitized_results, $sanitized_item);
-      }
-      return $sanitized_results;
-    }
-
-    // check if there is a package.json and fetch it
-    public function getPackageDotJSON(string $url) {
-        $content_url = 'https://api.github.com/repos/'.str_replace('https://github.com/', '', $url).'/contents/package.json';
+    public function isPackageJsonExists(string $url) {
+        $contentUrl = 'https://api.github.com/repos/'.str_replace('https://github.com/', '', $url).'/contents/package.json';
 
         $client = new Client();
 
         // check for package.json
         try{
-          $res = $client->get($content_url);
-          $json_response = json_decode($res->getBody());
-          if (isset($json_response->message)){
-            return ['error' => 'There is no package.json file in the project.'];
-          }else{
-            $package_json_url = $json_response->download_url;
-          }
+          $res = $client->get($contentUrl);
+          $jsonResponse = json_decode($res->getBody());
+          return $jsonResponse->download_url;
         }catch (ClientException $e){
-          return ['error' => 'There is an error connecting to Github.'];
-        }
-
-        // get package.json
-        try{
-          $res = $client->get($package_json_url);
-        }catch (ClientException $e){
-          return ['error' => 'There is an error connecting to Github.'];
-        }
-
-        // parse package.json
-        if ($res->getStatusCode() == 200){
-          $response_json = json_decode($res->getBody());
-          $repository = $this->parseJSON($response_json);
-          $repository['url'] = $url;
-          return $repository;
-        }else{
-          return ['error' => 'There is an issue accessing Github.'];
+          return array('errorMessage' => 'There is no valid package.json');
         }
     }
 
-    //Parse the JSON response to get dependencies and devDependencies
-    private function parseJSON($response_json){
-      if(!isset($response_json->devDependencies) && !isset($response_json->dependencies)){
-        return array('error' => 'The package.json has no dependencies.');
+    public function parsePackageJson(string $packageJsonUrl, $packageData) {
+        // get package.json
+        $client = new Client();
+        try{
+          $res = $client->get($packageJsonUrl);
+        }catch (ClientException $e){
+          return array('errorMessage' => 'There is no valid package.json');
+        }
+
+        return $this->getPackageJsonData($res);
+    }
+
+    // whitelist only the attributes we need
+    private function whitelistRepo($responseJson){
+      $repos = [];
+      foreach($responseJson->items as $repo){
+        $repository = [
+          'name' => $repo->name,
+          'description' => $repo->description,
+          'url' => $repo->html_url,
+          'forks_count' => $repo->forks_count,
+          'stars_count' => $repo->stargazers_count,
+          'watchers_count' => $repo->watchers_count,
+          'author' => $repo->owner->login,
+          'avatar_url' => $repo->owner->avatar_url,
+          'updated_at' => $repo->updated_at
+        ];
+        array_push($repos, $repository);
       }
-      $repository = ['name' => $response_json->name];
+      return $repos;
+    }
+
+    private function getPackageJsonData($res) {
+      // parse package.json
+      if ($res->getStatusCode() == 200){
+        $responseJson = json_decode($res->getBody());
+        $repository = $this->getDependencies($responseJson);
+        $mergedData = array_merge($repository, $packageData);
+        return $mergedData;
+      } else{
+        return array('errorMessage' => 'There is an error connecting to Github.');
+      }
+    }
+
+    //Parse the JSON response to get dependencies and devDependencies
+    private function getDependencies($response_json){
+      if(!isset($response_json->devDependencies) && !isset($response_json->dependencies)){
+        return array('error' => true, 'message' => 'The package.json has no dependencies.');
+      }
+      $devDependencies = [];
       $dependencies = [];
       if(isset($response_json->devDependencies)){
-        foreach($response_json->devDependencies as $dep => $versions){
-          array_push($dependencies, $dep);
+        foreach($response_json->devDependencies as $devDep => $versions){
+          array_push($devDependencies, $devDep);
         }
       }
       if(isset($response_json->dependencies)) {
@@ -95,6 +100,7 @@ class APIHandler
         }
       }
       $repository['dependencies'] = $dependencies;
+      $repository['devDependencies'] = $devDependencies;
       return $repository;
     }
 }

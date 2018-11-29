@@ -21,28 +21,35 @@ $container['logger'] = function ($c) {
 
 //PDO
 $container['pdo'] = function($c){
-    $settings = $c->get('settings')['db'];
-    $pdo = new PDO('mysql:host='.$settings['host'].';dbname='.$settings['dbname'],
-                    $settings['username'],
-                    $settings['password']);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    return $pdo;
+    $config = $c->get('settings')['pdo'];
+    try {
+      $dsn = "{$config['engine']}:host={$config['host']}";
+      $username = $config['username'];
+      $password = $config['password'];
+      $pdo = new PDO($dsn, $username, $password, $config['options']);
+      $pdo->exec("CREATE DATABASE IF NOT EXISTS {$config['database']};") 
+      or die(print_r($pdo->errorInfo(), true));
+      $dsn = "{$config['engine']}:host={$config['host']};dbname={$config['database']}";
+      $pdo = new PDO($dsn, $username, $password, $config['options']);
+      return $pdo;
+    } catch (PDOException $e) {
+      die("DB ERROR: ". $e->getMessage());
+    }
 };
 
 // controllers
-$container['SearchController'] = function($c){
-  return new Controllers\SearchController($c);
+$container['RepositoryController'] = function($c){
+  return new Controllers\RepositoryController($c);
 };
 
-$container['ImportController'] = function($c){
-  return new Controllers\ImportController($c);
+$container['PackageController'] = function($c){
+  return new Controllers\PackageController($c);
 };
 
 // handlers
 $container["APIHandler"] = function($c){
   return new Handlers\APIHandler();
 };
-$container["StorageHandler"] = function($c){
-  return new Handlers\StorageHandler();
+$container["DataHandler"] = function($c){
+  return new Handlers\DataHandler();
 };

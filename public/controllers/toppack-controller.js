@@ -1,32 +1,37 @@
-function toppackController($scope, ToppackFactory) {
+function toppackController(ToppackFactory, repositories) {
   'use strict';
 
-  $scope.searchTerm = "";
-  $scope.searchError = "";
+  var topPack = this;
 
-  $scope.searchRepo = function(searchTerm) {
-    var successCallback = function(data) {
-      debugger;
-      $scope.repositories = data;
-    }
-    var errorCallback = function(error) {
-      $scope.searchError = "Couldnt find any repositories"
-    }
-    ToppackFactory.getRepositories(searchTerm, successCallback, errorCallback);
+  topPack.repositories = repositories;
+
+  topPack.searchTerm = "";
+  topPack.searchError = "";
+
+  topPack.searchRepo = function() {
+    ToppackFactory.getRepositories(this.searchTerm, getReposSuccessCallback, getReposErrorCallback);
   };
 
-  $scope.importRepository = function(repository, index) {
-    var successCallback = function(response) {
-      $scope.repositories[index].imported = true;
-      $scope.repositories[index].importError = false;
-    }
+  topPack.importRepository = function(repository, index) {
+    ToppackFactory.importRepository(repository, importReposuccessCallback, importRepoErrorCallback);
+  }
 
-    var errorCallback = function(error) {
-      $scope.repositories[index].importError = true;
-    }
-    debugger
-    ToppackFactory.importRepository(repository, successCallback, errorCallback);
+  var getReposSuccessCallback = function(data) {
+    topPack.repositories = data;
+  }
+  var getReposErrorCallback = function(error) {
+    topPack.searchError = "Couldnt find any repositories";
+  }
+
+  var importReposuccessCallback = function(response) {
+    debugger;
+    topPack.repositories[index].imported = true;
+    topPack.repositories[index].importError = false;
+  }
+
+  var importRepoErrorCallback = function(error) {
+    topPack.repositories[index].importError = true;
   }
 }
 
-angular.module("toppack").controller("ToppackController", toppackController);
+angular.module("toppack").controller("ToppackController",['ToppackFactory', toppackController]);
